@@ -1,0 +1,6 @@
+/vendor/
+.env
+*.mp3
+*.m4a
+*.wav
+.phpunit.result.cache
