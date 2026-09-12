@@ -201,7 +201,7 @@ class PlaudClient
     }
 
     /**
-     * Get full details of a recording including transcript and summary.
+     * Get full details of a recording including standard and custom-template summaries.
      *
      * @throws ApiException
      * @throws AuthenticationException
@@ -218,16 +218,34 @@ class PlaudClient
     }
 
     /**
-     * Directly retrieve the transcript text for a recording.
+     * Directly retrieve the standard summary for a recording.
      *
      * @throws ApiException
      * @throws AuthenticationException
      * @throws NotFoundException
      */
-    public function getTranscript(string $id): string
+    public function getSummary(string $id): string
     {
         $detail = $this->getRecording($id);
-        return $detail->transcript;
+        return $detail->summary;
+    }
+
+    /**
+     * Retrieve the custom-template summary, or null when unavailable.
+     *
+     * @throws ApiException
+     * @throws AuthenticationException
+     * @throws NotFoundException
+     */
+    public function getCustomSummary(string $id): ?string
+    {
+        return $this->getRecording($id)->customSummary;
+    }
+
+    /** @deprecated Use getSummary(). This method does not retrieve a verbatim transcript. */
+    public function getTranscript(string $id): string
+    {
+        return $this->getSummary($id);
     }
 
     /**

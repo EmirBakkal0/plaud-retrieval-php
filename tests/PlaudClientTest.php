@@ -72,10 +72,10 @@ class PlaudClientTest extends TestCase
         $this->assertSame('rec_3', $recordings[1]->id);
     }
 
-    public function testGetTranscriptAndGetRecording(): void
+    public function testSummaryMethodsAndLegacyTranscriptAlias(): void
     {
         $mockHttp = $this->createMock(HttpClientInterface::class);
-        $mockHttp->expects($this->once())
+        $mockHttp->expects($this->exactly(4))
             ->method('request')
             ->with(
                 $this->equalTo('GET'),
@@ -90,16 +90,30 @@ class PlaudClientTest extends TestCase
                         'file_name' => 'Strategy Call.mp3',
                         'pre_download_content_list' => [
                             ['data_content' => 'Short'],
-                            ['data_content' => 'This is the complete transcript from Plaud.'],
+                            ['data_content' => 'This is the standard summary from Plaud.'],
                         ],
+                        'summary' => 'Custom-template output',
                     ]
                 ])
             ));
 
         $client = $this->createClientWithMockHttp($mockHttp);
-        $transcript = $client->getTranscript('test_rec_id');
+        $this->assertSame('This is the standard summary from Plaud.', $client->getSummary('test_rec_id'));
+        $this->assertSame('Custom-template output', $client->getCustomSummary('test_rec_id'));
+        $this->assertSame('This is the standard summary from Plaud.', $client->getTranscript('test_rec_id'));
+        $detail = $client->getRecording('test_rec_id');
+        $this->assertSame('This is the standard summary from Plaud.', $detail->summary);
+        $this->assertSame('Custom-template output', $detail->customSummary);
+    }
 
-        $this->assertSame('This is the complete transcript from Plaud.', $transcript);
+    public function testMissingSummaries(): void
+    {
+        $mockHttp = $this->createMock(HttpClientInterface::class);
+        $mockHttp->expects($this->exactly(2))->method('request')
+            ->willReturn(new HttpResponse(200, [], '{"data":{"file_id":"empty"}}'));
+        $client = $this->createClientWithMockHttp($mockHttp);
+        $this->assertSame('', $client->getSummary('empty'));
+        $this->assertNull($client->getCustomSummary('empty'));
     }
 
     public function testGetUserInfo(): void

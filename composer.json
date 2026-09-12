@@ -1,12 +1,12 @@
 {
     "name": "plaud/plaud-php",
-    "description": "Unofficial framework-agnostic PHP SDK for retrieving transcripts, recordings, and audio from Plaud.ai",
+    "description": "Unofficial framework-agnostic PHP SDK for retrieving summaries, recordings, and audio from Plaud.ai",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "plaud",
         "plaud-ai",
-        "transcript",
+        "summary",
         "audio",
         "recording",
         "sdk",
