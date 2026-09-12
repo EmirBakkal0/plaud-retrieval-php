@@ -2,7 +2,7 @@
 
 An independent, reusable, and framework-agnostic PHP client for the [Plaud.ai](https://www.plaud.ai/) API.
 
-Retrieve transcripts, manage recordings, download audio, and access account metadata with **zero database/storage dependencies** and **zero mandatory PHP frameworks**.
+Retrieve summaries, manage recordings, download audio, and access account metadata with **zero database/storage dependencies** and **zero mandatory PHP frameworks**.
 
 ---
 
@@ -16,8 +16,9 @@ Retrieve transcripts, manage recordings, download audio, and access account meta
 - **Automated Token Lifecycle**: Decodes JWT expiration timestamps without external dependencies and auto-refreshes tokens when within 30 days of expiry.
 - **Dynamic Region Redirection**: Automatically switches between `us` (`https://api.plaud.ai`) and `eu` (`https://api-euc1.plaud.ai`) on `-302` region responses.
 - **Complete Endpoints**:
-  - `getTranscript($id)`: Direct transcript text retrieval.
-  - `getRecording($id)`: Full metadata, AI summary, and transcript (selecting best version).
+  - `getSummary($id)`: Standard summary text.
+  - `getCustomSummary($id)`: Custom-template summary, or `null` when unavailable.
+  - `getRecording($id)`: Full metadata, standard summary, and custom-template summary.
   - `listRecordings()`: List active recordings (automatically filters trash).
   - `downloadAudio($id)` / `saveAudioToFile($id, $path)`: Download raw audio stream.
   - `getMp3Url($id)`: Temporary MP3 signed URL.
@@ -37,16 +38,16 @@ composer require plaud/plaud-php
 
 ## Quickstart
 
-### 1. Retrieve a Transcript (In 3 Lines)
+### 1. Retrieve a Summary (In 3 Lines)
 
 ```php
 use Plaud\PlaudClient;
 
 $client = PlaudClient::createWithCredentials('your-email@example.com', 'your-password', 'us');
 
-// Retrieve transcript as string
-$transcript = $client->getTranscript('recording_id_123');
-echo $transcript;
+// Retrieve standard summary as string
+$summary = $client->getSummary('recording_id_123');
+echo $summary;
 ```
 
 ---
@@ -63,10 +64,10 @@ $recording = $client->getRecording('recording_id_123');
 echo "Title:       " . $recording->filename . "\n";
 echo "Date:        " . $recording->getFormattedStartDate('Y-m-d H:i') . "\n";
 echo "Duration:    " . $recording->getDurationMinutes() . " minutes\n";
-echo "Transcript:\n" . $recording->transcript . "\n";
+echo "Summary:\n" . $recording->summary . "\n";
 
-if ($recording->summary) {
-    echo "Summary:\n" . $recording->summary . "\n";
+if ($recording->customSummary) {
+    echo "Custom-template summary:\n" . $recording->customSummary . "\n";
 }
 ```
 
@@ -113,7 +114,7 @@ If you have an existing JWT token from Plaud and do not want to provide email/pa
 use Plaud\PlaudClient;
 
 $client = PlaudClient::createWithToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', 'us');
-$transcript = $client->getTranscript('recording_id_123');
+$summary = $client->getSummary('recording_id_123');
 ```
 
 ---
@@ -214,11 +215,25 @@ try {
 
 ---
 
+## Summary naming migration (breaking DTO change)
+
+- Previous `$recording->transcript` becomes `$recording->summary`.
+- Previous `$recording->summary` becomes `$recording->customSummary`.
+- Use `getSummary($id)` and `getCustomSummary($id)`. `getTranscript()`, `$recording->transcript`, and `hasTranscript()` remain deprecated aliases for the standard summary.
+- Direct `RecordingDetail` constructor calls must rename the old `transcript:` argument to `summary:` and the old `summary:` argument to `customSummary:`. Positional content arguments retain their order.
+- Update application JSON mappings and consumers together: `summary` now means the standard summary. This change should be released as a breaking version.
+
+`hasSummary()` and `hasCustomSummary()` check for non-blank content. A missing standard summary is `''`; a missing custom-template summary is `null`.
+
+This is a terminology change based on the existing integration's outputs, not a new verbatim-transcription feature. Upstream payload keys are unchanged: the standard summary uses the legacy `transcript` field and the longest `pre_download_content_list[].data_content`; the custom-template summary uses `summary`, falling back to `ai_summary`. Length does not identify content type; selection is preserved pending validation against real payloads. `raw`, `isTrans`, and `isSummary` retain their existing upstream semantics; use the new presence helpers to check SDK summary content.
+
+The updated CLI example is `examples/01_get_summary.php`.
+
+---
+
 ## Running Tests
 
 ```bash
-composer test
-# Or:
 ./vendor/bin/phpunit
 ```
 

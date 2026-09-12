@@ -6,6 +6,9 @@ namespace Plaud\DTO;
 
 class RecordingDetail extends Recording
 {
+    /** @deprecated Use $summary. This alias does not contain a verbatim transcript. */
+    public readonly string $transcript;
+
     /**
      * @param string $id
      * @param string $filename
@@ -19,8 +22,8 @@ class RecordingDetail extends Recording
      * @param bool $isSummary
      * @param string[] $keywords
      * @param string $serialNumber
-     * @param string $transcript
-     * @param string|null $summary
+     * @param string $summary Standard summary (previously named transcript).
+     * @param string|null $customSummary Custom-template summary.
      * @param array<string, mixed> $raw
      */
     public function __construct(
@@ -36,10 +39,11 @@ class RecordingDetail extends Recording
         bool $isSummary,
         array $keywords = [],
         string $serialNumber = '',
-        public readonly string $transcript = '',
-        public readonly ?string $summary = null,
+        public readonly string $summary = '',
+        public readonly ?string $customSummary = null,
         array $raw = []
     ) {
+        $this->transcript = $summary;
         parent::__construct(
             id: $id,
             filename: $filename,
@@ -64,21 +68,23 @@ class RecordingDetail extends Recording
     {
         $raw = isset($data['data']) && is_array($data['data']) ? $data['data'] : $data;
 
-        $transcript = (string) ($raw['transcript'] ?? '');
+        // Keep the upstream field names; only the SDK's public terminology changes.
+        $summary = isset($raw['transcript']) && is_string($raw['transcript'])
+            ? $raw['transcript'] : '';
         $preDownload = isset($raw['pre_download_content_list']) && is_array($raw['pre_download_content_list'])
             ? $raw['pre_download_content_list']
             : [];
 
-        // Select the longest content from pre_download_content_list if available
+        // Preserve the existing longest-content selection. Length is not a content-type discriminator.
         foreach ($preDownload as $item) {
             if (is_array($item) && isset($item['data_content']) && is_string($item['data_content'])) {
-                if (strlen($item['data_content']) > strlen($transcript)) {
-                    $transcript = $item['data_content'];
+                if (strlen($item['data_content']) > strlen($summary)) {
+                    $summary = $item['data_content'];
                 }
             }
         }
 
-        $summary = isset($raw['summary']) && is_string($raw['summary'])
+        $customSummary = isset($raw['summary']) && is_string($raw['summary'])
             ? $raw['summary']
             : (isset($raw['ai_summary']) && is_string($raw['ai_summary']) ? $raw['ai_summary'] : null);
 
@@ -90,8 +96,8 @@ class RecordingDetail extends Recording
         $startTime = (int) ($raw['start_time'] ?? 0);
         $endTime = (int) ($raw['end_time'] ?? 0);
         $isTrash = (bool) ($raw['is_trash'] ?? false);
-        $isTrans = (bool) ($raw['is_trans'] ?? ($transcript !== ''));
-        $isSummary = (bool) ($raw['is_summary'] ?? ($summary !== null));
+        $isTrans = (bool) ($raw['is_trans'] ?? ($summary !== ''));
+        $isSummary = (bool) ($raw['is_summary'] ?? ($customSummary !== null));
         $keywords = isset($raw['keywords']) && is_array($raw['keywords']) ? $raw['keywords'] : [];
         $serialNumber = (string) ($raw['serial_number'] ?? $raw['sn'] ?? '');
 
@@ -108,14 +114,25 @@ class RecordingDetail extends Recording
             isSummary: $isSummary,
             keywords: $keywords,
             serialNumber: $serialNumber,
-            transcript: $transcript,
             summary: $summary,
+            customSummary: $customSummary,
             raw: $raw
         );
     }
 
+    public function hasSummary(): bool
+    {
+        return trim($this->summary) !== '';
+    }
+
+    public function hasCustomSummary(): bool
+    {
+        return $this->customSummary !== null && trim($this->customSummary) !== '';
+    }
+
+    /** @deprecated Use hasSummary(). */
     public function hasTranscript(): bool
     {
-        return !empty(trim($this->transcript));
+        return $this->hasSummary();
     }
 }
