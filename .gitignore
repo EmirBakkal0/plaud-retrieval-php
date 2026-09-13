@@ -4,3 +4,6 @@
 *.m4a
 *.wav
 .phpunit.result.cache
+
+# Visual Studio
+.vs/
